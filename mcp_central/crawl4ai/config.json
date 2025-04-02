@@ -1,0 +1,9 @@
+{
+    "crawl4ai": {
+      "command": "fastmcp",
+      "args": [
+        "run",
+        "path/to/crawl4ai/mcp.py"
+      ]
+    }
+}

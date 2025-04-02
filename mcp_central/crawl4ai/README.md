@@ -13,3 +13,17 @@ crawl4ai-doctor
 ```shell
 fastmcp dev mcp.py
 ```
+
+## config
+
+```json
+{
+    "crawl4ai": {
+      "command": "fastmcp",
+      "args": [
+        "run",
+        "path/to/crawl4ai/mcp.py"
+      ]
+    }
+}
+```

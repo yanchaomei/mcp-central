@@ -1,5 +1,3 @@
-import html
-
 import trafilatura
 from crawl4ai import *
 from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
@@ -27,7 +25,7 @@ async def crawl4ai(website: str) -> str:
             result = await crawler.arun(
                 url=website,
             )
-            markdown = html.escape(trafilatura.extract(str(result.markdown)))
+            markdown = trafilatura.extract(str(result.markdown))
             return {"content": markdown}
     except Exception:
         import traceback

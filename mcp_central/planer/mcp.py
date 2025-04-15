@@ -82,6 +82,7 @@ def task_done():
     global query, analysis, plan_stack, current_plan, executed_plans
     plan_stack_str = '\n'.join(list(reversed(plan_stack)))
     if plan_stack_str:
+        # This will cause model use more tokens at simple tasks
         plan_stack_str = f'You have unfinished tasks: {plan_stack_str}\n\n'
     content = (f'The original user query: {query}\n\n'
                f'The conditions and detail todo list: {analysis}\n\n'

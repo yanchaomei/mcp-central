@@ -5,8 +5,7 @@ import gradio as gr
 from run import LiteResearchMCPClient
 
 with gr.Blocks() as demo:
-    gr.Markdown("## A Lite Research Tool with Pure MCP Servers")
-
+    gr.HTML(f"<h3><a href=\"https://github.com/modelscope/mcp-central\" target=\"_blank\">A Lite Research Tool with Pure MCP Servers</a></h3>")
     with gr.Row():
         with gr.Column(scale=1, min_width=200):
             gr.Markdown("### Model(OpenAI standard urls)")

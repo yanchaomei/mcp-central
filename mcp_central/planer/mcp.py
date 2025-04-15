@@ -19,8 +19,7 @@ executed_plans = []
                       'finish the job and the detail todo list.')
 def save_query(user_query: str, conditions_and_todo_list) -> str:
     global query, analysis, current_plan
-    if not query:
-        query = user_query
+    query = user_query
     analysis = conditions_and_todo_list
     plan_stack.clear()
     current_plan = ''

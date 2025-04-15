@@ -21,12 +21,12 @@ CLI:
 
 ```shell
 cd examples/lite_research
-python run.py --token xxx --model Qwen/Qwen2.5-72B-Instruct --base_url https://api-inference.modelscope.cn/v1
+TAVILY_API_KEY=xxx python run.py --token xxx --model Qwen/Qwen2.5-72B-Instruct --base_url https://api-inference.modelscope.cn/v1
 ```
 
 UI:
 
 ```shell
 cd examples/lite_research
-python app.py
+MODEL_TOKEN=xxx TAVILY_API_KEY=xxx python app.py
 ```

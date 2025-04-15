@@ -2,7 +2,7 @@ import asyncio
 import argparse
 import os
 from datetime import datetime
-from examples.lite_research.base import MCPClient
+from base import MCPClient
 
 
 class LiteResearchMCPClient(MCPClient):

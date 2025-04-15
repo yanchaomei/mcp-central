@@ -16,7 +16,9 @@ async def __aexit__(self, exc_type, exc_val, exc_tb):
 AsyncPlaywrightCrawlerStrategy.__aexit__ = __aexit__
 
 
-@mcp.tool()
+@mcp.tool(description='A crawl tool to get the content of a website page, '
+                      'and simplify the content to pure html content. This tool can be used to get the detail '
+                      'information in the url')
 async def crawl4ai(website: str) -> str:
     if not website.startswith('http'):
         website = 'http://' + website
@@ -25,11 +27,14 @@ async def crawl4ai(website: str) -> str:
             result = await crawler.arun(
                 url=website,
             )
-            markdown = trafilatura.extract(str(result.markdown))
-            return {"content": markdown}
+            html = trafilatura.extract(str(result.html))
+            if not html:
+                html = 'Cannot crawl this web page, please try another web page instead'
+            return html
     except Exception:
         import traceback
-        return f'Error: {traceback.format_exc()}'
+        print(traceback.format_exc())
+        return 'Cannot crawl this web page, please try another web page instead'
 
 
 if __name__ == "__main__":

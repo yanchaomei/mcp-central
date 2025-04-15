@@ -1,0 +1,9 @@
+{
+    "planer": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/planer/mcp.py"
+      ]
+    }
+}

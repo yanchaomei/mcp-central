@@ -190,6 +190,7 @@ class MCPClient:
             ]
             tools.extend(available_tools)
 
+        task_done_cnt = 0
         while True:
             response = self.generate_response(messages, self.model, tools=tools, **kwargs)
             message = response.choices[0].message
@@ -198,7 +199,7 @@ class MCPClient:
             except:
                 reasoning = ''
             content = reasoning + (message.content or '')
-            if '<task_done>' in content or (not content.strip() and not message.tool_calls):
+            if '<task_done>' in content or (not content.strip() and not message.tool_calls) or task_done_cnt >= 4:
                 break
             messages.append({
                 "role": "assistant",
@@ -218,6 +219,8 @@ class MCPClient:
                             if len(user_query) > 1:
                                 user_query = user_query[1]
                                 args['user_query'] = user_query
+                        elif tool.function.name == 'planer---task_done':
+                            task_done_cnt += 1
                         result = await self.sessions[key].call_tool(tool_name, args)
                         _print_result = result.content[0].text or ''
                         if len(_print_result) > 1024:

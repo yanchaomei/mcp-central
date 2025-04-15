@@ -49,14 +49,14 @@ with gr.Blocks() as demo:
                 ex1 = gr.Button(value="请帮我搜索摩洛哥最好看的景点，尤其是从亚洲人的评论中", scale=6)
                 ex1.click(lambda x: x, [ex1], [query])
                 ex2 = gr.Button(value="Please give me some interesting stories in the Dify company, "
-                                      "and summarize to a 5000 words report", scale=8)
+                                      "and summarize to a 1000 words report", scale=8)
                 ex2.click(lambda x: x, [ex2], [query])
             with gr.Row():
                 ex3 = gr.Button(value='Browse website, and find me a good joke', scale=4)
                 ex3.click(lambda x: x, [ex3], [query])
                 ex4 = gr.Button(value="给我找下2025年最受期待的游戏有哪些", scale=4)
                 ex4.click(lambda x: x, [ex4], [query])
-                ex5 = gr.Button(value="Write a paper of 5000 words to introduce Elon Mask.", scale=6)
+                ex5 = gr.Button(value="Write a paper of 1000 words to introduce Elon Mask.", scale=6)
                 ex5.click(lambda x: x, [ex5], [query])
 
 
@@ -77,6 +77,7 @@ with gr.Blocks() as demo:
                 response, query = response.split('tool result:')
             history[-1][-1] = response
             yield history, ''
+            query = query.replace('<', '').replace('>', '')
             history.append([query, ''])
 
 

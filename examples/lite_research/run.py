@@ -39,8 +39,8 @@ async def main():
     client = LiteResearchMCPClient(base_url=args.base_url, token=args.token, model=args.model,
                                    mcp=['crawl4ai', 'planer', 'web-search'])
     try:
-        # user_input = input('>>> Please input your query:')
-        user_input = 'Please give me some interesting stories in the Dify company, and summarize to a 5000 words report'
+        user_input = input('>>> Please input your query:')
+        # user_input = 'Please give me some interesting stories in the Dify company, and summarize to a 5000 words report'
         await client.connect_all_servers(None)
         async for response in client.process_query(None, user_input):
             print(response)

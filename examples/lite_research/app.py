@@ -24,7 +24,6 @@ def start():
                 default_system = gr.Textbox(value=LiteResearchMCPClient.default_system, lines=5, label='system')
                 state = gr.State([])
 
-
                 async def connect_server(base_url, model, token, state):
                     if state:
                         asyncio.run(state[0].cleanup())
@@ -36,7 +35,6 @@ def start():
                     await client.connect_all_servers(None)
                     gr.Info('🚂Server started🏁')
                     return [client], gr.update(value=True, label='🍏Connected')
-
 
                 submit.click(connect_server, [base_url, model, token, state], [state, connect_status])
 
@@ -60,7 +58,6 @@ def start():
                     ex5 = gr.Button(value="Write a paper of 1000 words to introduce Elon Mask.", scale=6)
                     ex5.click(lambda x: x, [ex5], [query])
 
-
         async def search(default_system, user_input, top_p, temperature, max_completion_length, state):
             if not state:
                 raise gr.Error(f'Connect server first')
@@ -80,7 +77,6 @@ def start():
                 yield history, ''
                 query = query.replace('<', '').replace('>', '')
                 history.append([query, ''])
-
 
         submit2.click(search, [default_system, query, top_p, temperature,
                                max_completion_length, state], [chat, query])

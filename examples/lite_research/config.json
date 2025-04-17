@@ -8,6 +8,10 @@
       },
       "disabled": false,
       "autoApprove": []
+    },
+    "edgeone-pages-mcp-server": {
+      "command": "npx",
+      "args": ["edgeone-pages-mcp"]
     }
   }
 }

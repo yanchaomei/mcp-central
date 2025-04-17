@@ -1,3 +1,5 @@
+import json
+
 import trafilatura
 from crawl4ai import *
 from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
@@ -19,7 +21,7 @@ AsyncPlaywrightCrawlerStrategy.__aexit__ = __aexit__
 @mcp.tool(description='A crawl tool to get the content of a website page, '
                       'and simplify the content to pure html content. This tool can be used to get the detail '
                       'information in the url')
-async def crawl4ai(website: str) -> str:
+async def crawl_website(website: str) -> str:
     if not website.startswith('http'):
         website = 'http://' + website
     try:
@@ -27,10 +29,34 @@ async def crawl4ai(website: str) -> str:
             result = await crawler.arun(
                 url=website,
             )
-            html = trafilatura.extract(str(result.html))
+            html = str(result.html)
+            html = trafilatura.extract(html,
+                                       deduplicate=True,
+                                       favor_precision=True,
+                                       include_comments=False,
+                                       output_format='markdown',
+                                       with_metadata=True,
+                                       )
             if not html:
                 html = 'Cannot crawl this web page, please try another web page instead'
-            return html
+            result = {"text": html}
+            media_list = []
+            if result.media:
+                for key in result.media:
+                    media_dict = result.media[key]
+                    for row in media_dict:
+                        src = row["src"] or ''
+                        if src and not src.startswith('http'):
+                            src = src.lstrip('/')
+                            src = 'https://' + src
+                        media_list.append(
+                            {
+                                "key": key,
+                                "description": row["alt"][:100] or row["desc"][:100] or "No description",
+                                "link": src,
+                            })
+                result["media"] = media_list
+            return json.dumps(result)
     except Exception:
         import traceback
         print(traceback.format_exc())

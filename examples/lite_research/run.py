@@ -6,43 +6,67 @@ from base import MCPClient
 
 
 class LiteResearchMCPClient(MCPClient):
+    default_system = f"""You are an assistant that helps generate comprehensive documnetations or webpages from gathered information. Today is {datetime.now().strftime("%Y-%m-%d")}.
 
-    default_system = f"""You are an assistant that helps me generate summary reports based on webpage information, today is {datetime.now().strftime("%Y-%m-%d")}. You can utilize various tools and call the appropriate tools at the appropriate times.
+## ⚠️ CRITICAL WARNING
+* NEVER GENERATE THE FINAL DOCUMENT OR WEBSITE UNTIL ALL PLAN STEPS ARE COMPLETED
+* YOU MUST VERIFY ALL PLAN STEPS ARE MARKED AS COMPLETE before delivering the final result
+* PREMATURE TASK COMPLETION IS THE #1 FAILURE MODE - avoid at all costs
+* FOCUS ON INFORMATION COLLECTION, IMAGE COLLECTION, WEBSITE BEAUTY.
 
-Among the tools you select, you must include at least the following tools:
+## Planning Guidelines - FOCUSED & MEANINGFUL
+* Create a CONCISE, FOCUSED plan with ONLY meaningful, actionable steps, follow it COMPLETELY, NEVER skip steps without explanation
+* AIM FOR 5-10 HIGH-IMPACT STEPS rather than many small steps
+* Each step must directly contribute to the final deliverable
+* Break complex steps into concrete sub-steps only when necessary
+* IF verify_task_completion SHOWS UNFINISHED TASKS, YOU MUST CONTINUE (NOT END TASK)
+* **IMPORTANT: ALWAYS keep your plan brief and clean. 
 
-1. **Web search tool**, used to find corresponding information from search engines.
+## Tools & Process
+1. **IMPORTANT: Your PLAN and SEARCH SHOULD BE the SAME LANGUAGE as the user QUERY, avoid Unicode
+2. Use search tool along with the crawl tool, create rich, informative content beyond basic information
+3. The planer will mention you the steps you made, ALWAYS FOLLOW, Check off steps as they are completed to track progress
+4. **IMPORTANT: Make sure your website or documentation is comprehensive and contains the enough information
+5. Make sure your website or documentation has all the correct links
+6. For website: ONLY USE HTML, CSS AND JAVASCRIPT. If you want to use ICON make sure to import the library first. Try to create the best UI as best as possible. Use as much as you can TailwindCSS for the CSS, if you can't do something with TailwindCSS, then use custom CSS (make sure to import <script src="https://cdn.tailwindcss.com"></script> in the head). Also, try to ellaborate as much as you can, to create something unique
 
-2. **Web scraping tool**, used to obtain specific content from web pages, but you need to pay attention to **the timeliness and authenticity of the information on the web page**.
+## Example of a FOCUSED Plan
 
-3. **Plan-making tool (planer)**, used to break down, check, and redo plans if necessary, and output your report before finally calling `task_done`.
+```
+PLAN:
+1. Research & Content Gathering:
+   1.1. Search and collect comprehensive information on [topic] using user's language
+   1.2. Identify and crawl authoritative sources for detailed content
+   1.3. Crawl enough high-quality medias(e.g. image links) from compatible platforms
 
-You need to perform at least the following steps (and can perform more steps to complete the task more meticulously):
+2. Content Creation & Organization:
+   2.1. Develop main content sections with complete information
+   2.3. Organize information with logical hierarchy and flow
 
-1. Analyze based on the user's question, provide the conditions required to meet the user's needs, and the aspects of information that need to be collected, and call planer to store the analysis results.
+3. Design & Animation Implementation:
+   3.1. Create responsive layout with modern aesthetic, with all the useful information collected
+   3.2. Implement key animations for enhanced user experience
 
-2. Break down the steps based on the user's question, forming a **detailed** plan list, and call planer to manage your steps. You can **further break down the steps into sub-steps**.
-
-3. If you call tools, please give the reason and the reasoning for calling them.
-
-4. Use the content obtained from web search, and summarize it into article paragraphs based on your understanding, give a report satisfies the user requirements before calling `task_done`."""
+4. Finalization:
+   4.1. Confirm all planned tasks are completed with verify_task_completion
+```
+"""
 
 
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_url", type=str, default="https://api-inference.modelscope.cn/v1")
-    parser.add_argument("--model", type=str, default="Qwen/Qwen2.5-72B-Instruct")
-    parser.add_argument("--token", type=str)
+    parser.add_argument("--model", type=str, default="qwen2.5-72b-instruct")
+    parser.add_argument("--token", type=str, default="")
     args = parser.parse_args()
     if not args.token:
         args.token = os.environ.get('MODEL_TOKEN', '')
     client = LiteResearchMCPClient(base_url=args.base_url, token=args.token, model=args.model,
-                                   mcp=['crawl4ai', 'planer', 'web-search'])
+                                   mcp=['crawl4ai', 'planer', 'web-search', 'edgeone-pages-mcp-server'])
     try:
         user_input = input('>>> Please input your query:')
-        # user_input = 'Please give me some interesting stories in the Dify company, and summarize to a 5000 words report'
         await client.connect_all_servers(None)
-        async for response in client.process_query(None, user_input):
+        async for response in client.process_query(None, user_input, system=True):
             print(response)
             print('\n')
     finally:

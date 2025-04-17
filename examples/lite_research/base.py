@@ -32,7 +32,7 @@ class MCPClient:
         )
 
     def generate_response(self, messages, model, tools=None, **kwargs) -> ChatCompletion:
-        time.sleep(1)
+        time.sleep(0.5)
         if tools:
             tools = [
                 {
@@ -49,7 +49,7 @@ class MCPClient:
         completion = None
         parameters = inspect.signature(self.client.chat.completions.create).parameters
         kwargs = {key: value for key, value in kwargs.items() if key in parameters}
-        for i in range(3):
+        for i in range(5):
             try:
                 completion = self.client.chat.completions.create(
                     model=model,
@@ -61,12 +61,9 @@ class MCPClient:
                 _e = None
                 break
             except Exception as e:
-                if '418' in str(e):
-                    _e = e
-                    continue
-                else:
-                    _e = e
-                    break
+                _e = e
+                time.sleep(10)
+                continue
         if _e:
             raise _e
         return completion
@@ -170,6 +167,52 @@ class MCPClient:
             marker = "* " if name == self.current_server else "  "
             print(f"{marker}{name}")
 
+    def summary(self, query, content, **kwargs):
+        prompt = """Based on the query: "{query}", filter this content to keep only the most relevant information.
+
+Your task is to:
+1. Mandatory: Retain ALL information directly relevant to the query
+2. Mandatory: Keep URLs and links that provide useful resources related to the query
+3. Mandatory: Filter out URLs and content that are not helpful for addressing the query
+4. Mandatory: Preserve technical details, specifications, and instructions related to the query
+5. Mandatory: Maintain the connection between relevant information and its corresponding URLs
+
+Format your response as a JSON object without code block markers, containing:
+- "title": A descriptive title reflecting the query focus (5-12 words)
+- "summary": Filtered content with only query-relevant information and URLs
+- "status": "success" if the content is relevant to the query, "error" if the content is irrelevant or contains incorrect information
+
+Content to process:
+{content}
+
+Filtering guidelines:
+- Keep URLs that provide resources, tools, downloads, or information directly related to the query
+- Remove URLs to general pages, social media, promotional content, or unrelated material
+- Keep all technical specifications, code samples, or detailed instructions that address the query
+- Preserve product names, model numbers, and version information relevant to the query
+- Remove generic content, filler text, or background information that doesn't help answer the query
+- When evaluating a URL, consider where it leads and whether that destination would help someone with this query
+
+Error detection guidelines:
+- Set "status" to "error" if the content appears to be in a different language than expected
+- Set "status" to "error" if the content is about a completely different topic than the query (e.g., query about technology but content about tourism)
+- Set "status" to "error" if the content contains obvious factual errors or contradictions
+- Set "status" to "error" if URLs lead to unrelated content like tourism sites when querying for technical information
+- Set "status" to "error" if the content appears to be machine-translated or unintelligible
+- When setting "status" to "error", include a brief explanation in the summary field
+
+The goal is intelligent filtering with error detection - keeping all information and links that would be valuable for someone with this specific query, while removing everything else and flagging irrelevant or incorrect content.
+DO NOT add any other parts like ```json which may cause parse error of json."""
+
+        query = prompt.replace("{query}", query).replace("{content}", content)
+        messages = [{'role': 'user', 'content': query}]
+        if len(query) < 80000:
+            response = self.generate_response(messages, self.model, **kwargs)
+            content = response.choices[0].message.content
+        else:
+            content = 'Content too long, you need to try another website or search another keyword'
+        return content
+
     async def process_query(self, default_system, query: str, system=True, **kwargs) -> str:
         if not default_system:
             default_system = self.default_system
@@ -186,7 +229,7 @@ class MCPClient:
                     "description": tool.description,
                     "input_schema": tool.inputSchema
                 }
-                for tool in response.tools if tool.name != 'tavily-extract'
+                for tool in response.tools if tool.name not in ('tavily-extract', 'store_intermediate_results', 'get_intermediate_results')
             ]
             tools.extend(available_tools)
 
@@ -203,7 +246,7 @@ class MCPClient:
                 break
             messages.append({
                 "role": "assistant",
-                "content": content,
+                "content": content.strip(),
                 'tool_calls': message.tool_calls if not message.tool_calls else [message.tool_calls[0]],
             })
             if message.tool_calls:
@@ -213,18 +256,59 @@ class MCPClient:
                     key, tool_name = name.split('---')
                     args = json.loads(args)
                     try:
-                        if tool.function.name == 'planer---save_query':
+                        if tool.function.name == 'planer---initialize_task':
                             user_query = args.get('user_query', '')
                             user_query = user_query.split(self.connector)
                             if len(user_query) > 1:
                                 user_query = user_query[1]
                                 args['user_query'] = user_query
-                        elif tool.function.name == 'planer---task_done':
+                        elif tool.function.name == 'planer---verify_task_completion':
                             task_done_cnt += 1
+                        if tool.function.name == 'planer---advance_to_next_step':
+                            start = 1
+                            _messages = [messages[0]]
+                            if messages[0]['role'] == 'system':
+                                start = 2
+                                _messages.append(messages[1])
+                            for i in range(start, len(messages)-1, 2):
+                                resp = messages[i]
+                                qry = messages[i+1]
+                                if resp.get('tool_calls') and resp['tool_calls'][0].function.name == 'planer---advance_to_next_step':
+                                    continue
+                                _messages.append(resp)
+                                _messages.append(qry)
+                            if _messages[-1] is not messages[-1]:
+                                _messages.append(messages[-1])
+                            messages = _messages
+
+                        # if tool.function.name == 'planer---store_intermediate_results':
+                        #     args['data'] = messages[-2]['content']
+                        #     tool.function.arguments = 'Arguments removed to brief context.'
+                        if tool.function.name == 'web-search---tavily-search':
+                            args['include_domains'] = []
+                            args['include_raw_content'] = False
                         result = await self.sessions[key].call_tool(tool_name, args)
-                        _print_result = result.content[0].text or ''
-                        if len(_print_result) > 1024:
-                            _print_result = _print_result[:1024] + '...'
+                        # if len(result.content[0].text) > 20000:
+                        #     result.content[0].text += ('\n\nContent too long, '
+                        #                                'Call planer---store_intermediate_results to summarize.')
+                        tool_result = (result.content[0].text or '').strip()
+                        if key in ('web-search'):
+                            _args: dict = self.summary(query, tool_result, **kwargs)
+                            _print_origin_result = tool_result
+                            if len(_print_origin_result) > 512:
+                                _print_origin_result = _print_origin_result[:512] + '...'
+                            print(tool_name, args, _print_origin_result)
+                            # _args['data'] = tool_result
+                            # result = await self.sessions['planer'].call_tool('store_intermediate_results', _args)
+                            tool_result = str(_args)  # (result.content[0].text or '').strip()
+                        # if tool.function.name == 'planer---store_intermediate_results':
+                        #     messages[-2]['content'] = f'Tool result cached to planer with title: {args["title"]}'
+                        messages.append({
+                            'role': 'tool',
+                            'content': f'tool_call_id: {tool.id}\n' + 'result:' + tool_result,
+                            'tool_call_id': tool.id,
+                        })
+                        _print_result = tool_result  # result.content[0].text or ''
                         yield f'{content}\n\n tool call: {name}, {args}\n\n tool result: {_print_result}'
                     except Exception as e:
                         messages.append({
@@ -232,12 +316,7 @@ class MCPClient:
                             'content': f'Tool {name} called with error: ' + str(e),
                             'tool_call_id': tool.id,
                         })
-                    else:
-                        messages.append({
-                            'role': 'tool',
-                            'content': result.content[0].text or '',
-                            'tool_call_id': tool.id,
-                        })
+                    print(f'messages len: {len(str(messages))}')
                     break
             else:
                 yield content

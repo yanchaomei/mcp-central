@@ -39,7 +39,7 @@ async def crawl_website(website: str) -> str:
                                        )
             if not html:
                 html = 'Cannot crawl this web page, please try another web page instead'
-            result = {"text": html}
+            output = {"text": html}
             media_list = []
             if result.media:
                 for key in result.media:
@@ -51,12 +51,12 @@ async def crawl_website(website: str) -> str:
                             src = 'https://' + src
                         media_list.append(
                             {
-                                "key": key,
+                                "type": key,
                                 "description": row["alt"][:100] or row["desc"][:100] or "No description",
                                 "link": src,
                             })
-                result["media"] = media_list
-            return json.dumps(result)
+                output["media"] = media_list
+            return json.dumps(output, ensure_ascii=False)
     except Exception:
         import traceback
         print(traceback.format_exc())

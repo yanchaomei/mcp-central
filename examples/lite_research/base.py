@@ -348,8 +348,6 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
 
     async def connect_all_servers(self, query):
         config = self.generate_config(self.mcp)
-        with open('./config1.json','w') as f:
-            json.dump(config, f, ensure_ascii=False)
         if not self.mcp:
             keys = config.keys()
             messages = [dict(role='system',

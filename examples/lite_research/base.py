@@ -61,8 +61,9 @@ class MCPClient:
                 _e = None
                 break
             except Exception as e:
+                print(str(e))
                 _e = e
-                time.sleep(10)
+                time.sleep(15)
                 continue
         if _e:
             raise _e
@@ -99,8 +100,8 @@ class MCPClient:
 
                 args = mcp_content['args']
                 for idx in range(len(args)):
-                    if 'mcp.py' in args[idx]:
-                        args[idx] = os.path.join(mcp_abs_path, 'mcp.py')
+                    if 'server.py' in args[idx]:
+                        args[idx] = os.path.join(mcp_abs_path, 'server.py')
             config_json[mcp_server] = mcp_content
 
         if os.path.exists('./config.json'):
@@ -242,29 +243,30 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
             except:
                 reasoning = ''
             content = reasoning + (message.content or '')
-            if '<task_done>' in content or (not content.strip() and not message.tool_calls) or task_done_cnt >= 4:
+            if '<task_done>' in content or task_done_cnt >= 4:
                 break
-            messages.append({
-                "role": "assistant",
-                "content": content.strip(),
-                'tool_calls': message.tool_calls if not message.tool_calls else [message.tool_calls[0]],
-            })
+            if content.strip() or message.tool_calls:
+                messages.append({
+                    "role": "assistant",
+                    "content": content.strip(),
+                    'tool_calls': message.tool_calls if not message.tool_calls else [message.tool_calls[0]],
+                })
             if message.tool_calls:
                 for tool in message.tool_calls:
-                    name = tool.function.name
-                    args = tool.function.arguments
-                    key, tool_name = name.split('---')
-                    args = json.loads(args)
                     try:
-                        if tool.function.name == 'planer---initialize_task':
+                        name = tool.function.name
+                        args = tool.function.arguments
+                        key, tool_name = name.split('---')
+                        args = json.loads(args)
+                        if tool.function.name == 'notebook---initialize_task':
                             user_query = args.get('user_query', '')
                             user_query = user_query.split(self.connector)
                             if len(user_query) > 1:
                                 user_query = user_query[1]
                                 args['user_query'] = user_query
-                        elif tool.function.name == 'planer---verify_task_completion':
+                        elif tool.function.name == 'notebook---verify_task_completion':
                             task_done_cnt += 1
-                        if tool.function.name == 'planer---advance_to_next_step':
+                        if tool.function.name == 'notebook---advance_to_next_step':
                             start = 1
                             _messages = [messages[0]]
                             if messages[0]['role'] == 'system':
@@ -273,7 +275,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                             for i in range(start, len(messages)-1, 2):
                                 resp = messages[i]
                                 qry = messages[i+1]
-                                if resp.get('tool_calls') and resp['tool_calls'][0].function.name == 'planer---advance_to_next_step':
+                                if resp.get('tool_calls') and resp['tool_calls'][0].function.name == 'notebook---advance_to_next_step':
                                     continue
                                 _messages.append(resp)
                                 _messages.append(qry)
@@ -281,7 +283,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                                 _messages.append(messages[-1])
                             messages = _messages
 
-                        # if tool.function.name == 'planer---store_intermediate_results':
+                        # if tool.function.name == 'notebook---store_intermediate_results':
                         #     args['data'] = messages[-2]['content']
                         #     tool.function.arguments = 'Arguments removed to brief context.'
                         if tool.function.name == 'web-search---tavily-search':
@@ -290,7 +292,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                         result = await self.sessions[key].call_tool(tool_name, args)
                         # if len(result.content[0].text) > 20000:
                         #     result.content[0].text += ('\n\nContent too long, '
-                        #                                'Call planer---store_intermediate_results to summarize.')
+                        #                                'Call notebook---store_intermediate_results to summarize.')
                         tool_result = (result.content[0].text or '').strip()
                         if key in ('web-search'):
                             _args: dict = self.summary(query, tool_result, **kwargs)
@@ -298,16 +300,37 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                             if len(_print_origin_result) > 512:
                                 _print_origin_result = _print_origin_result[:512] + '...'
                             print(tool_name, args, _print_origin_result)
-                            # _args['data'] = tool_result
-                            # result = await self.sessions['planer'].call_tool('store_intermediate_results', _args)
-                            tool_result = str(_args)  # (result.content[0].text or '').strip()
-                        # if tool.function.name == 'planer---store_intermediate_results':
-                        #     messages[-2]['content'] = f'Tool result cached to planer with title: {args["title"]}'
-                        messages.append({
-                            'role': 'tool',
-                            'content': f'tool_call_id: {tool.id}\n' + 'result:' + tool_result,
-                            'tool_call_id': tool.id,
-                        })
+                            tool_result = str(_args)
+                        # if tool.function.name == 'notebook---store_intermediate_results':
+                        #     messages[-2]['content'] = f'Tool result cached to notebook with title: {args["title"]}'
+                        if tool.function.name == 'notebook---advance_to_next_step':
+                            content_and_system = json.loads(tool_result)
+                            tool_result = content_and_system[0]
+                            system = content_and_system[1]
+                            if 'Previous main task done' in tool_result:
+                                _messages = [messages[0]]
+                                if messages[0]['role'] == 'system':
+                                    _messages.append(messages[1])
+                                messages = _messages
+                            if messages[0]['role'] == 'system':
+                                messages[0]['content'] = self.sub_system + system
+                            if 'Previous main task done' in tool_result:
+                                messages.append({
+                                    'role': 'user',
+                                    'content': tool_result,
+                                })
+                            else:
+                                messages.append({
+                                    'role': 'tool',
+                                    'content': tool_result,
+                                    'tool_call_id': tool.id,
+                                })
+                        else:
+                            messages.append({
+                                'role': 'tool',
+                                'content': tool_result,
+                                'tool_call_id': tool.id,
+                            })
                         _print_result = tool_result  # result.content[0].text or ''
                         yield f'{content}\n\n tool call: {name}, {args}\n\n tool result: {_print_result}'
                     except Exception as e:
@@ -319,11 +342,14 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                     print(f'messages len: {len(str(messages))}')
                     break
             else:
-                yield content
+                if content:
+                    yield content
                 continue
 
     async def connect_all_servers(self, query):
         config = self.generate_config(self.mcp)
+        with open('./config1.json','w') as f:
+            json.dump(config, f, ensure_ascii=False)
         if not self.mcp:
             keys = config.keys()
             messages = [dict(role='system',
@@ -331,7 +357,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                                  'You are an assistant which helps me to finish a complex job. '
                                  'Tools may be given to you '
                                  'and you must choose which tools are required list them in a '
-                                 'json array and wraps it in a <box></box>, at least you should use planer, '
+                                 'json array and wraps it in a <box></box>, at least you should use notebook, '
                                  'a google-search tool and a crawler.')),
                         {
                             'role': 'user',

@@ -5,7 +5,7 @@
 ## Dev
 
 ```shell
-fastmcp dev mcp.py
+fastmcp dev server.py
 ```
 
 ## Run

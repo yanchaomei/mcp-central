@@ -1,9 +1,9 @@
 {
-    "planer": {
+    "notebook": {
       "command": "/path/to/fastmcp",
       "args": [
         "run",
-        "/path/to/planer/mcp.py"
+        "/path/to/notebook/server.py"
       ]
     }
 }

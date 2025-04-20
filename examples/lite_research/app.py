@@ -31,7 +31,7 @@ def start():
                         token = os.environ.get('MODEL_TOKEN', '')
                     assert token, 'Please input a token or use `MODEL_TOKEN` env.'
                     client = LiteResearchMCPClient(base_url=base_url, model=model,
-                                                   token=token, mcp=['crawl4ai', 'planer', 'web-search'])
+                                                   token=token, mcp=['crawl4ai', 'notebook', 'web-search'])
                     await client.connect_all_servers(None)
                     gr.Info('🚂Server started🏁')
                     return [client], gr.update(value=True, label='🍏Connected')

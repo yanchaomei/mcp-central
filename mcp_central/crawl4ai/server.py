@@ -39,6 +39,8 @@ async def crawl_website(website: str) -> str:
                                        )
             if not html:
                 html = 'Cannot crawl this web page, please try another web page instead'
+            if len(html) > 2048:
+                html = html[:2048]
             output = {"text": html}
             media_list = []
             if result.media:

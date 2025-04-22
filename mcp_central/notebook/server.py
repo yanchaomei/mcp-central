@@ -30,7 +30,7 @@ class Task:
                 sub_tasks.append(Task(name=plan))
             else:
                 step = plan['step']
-                system = plan['system']
+                system = plan.get('system')
                 substeps = plan['substeps']
                 sub_tasks.append(Task(name=step, system=system, sub_tasks=substeps))
         return sub_tasks
@@ -166,13 +166,11 @@ def initialize_task(user_query: str, conditions_and_todo_list) -> str:
 
 @mcp.tool(description='Creates or updates your execution plan with specific actionable steps. The \'plans\' should be '
                       'either a list of clear, concrete instructions or a hierarchical structure with main steps '
-                      'and sub-steps (using dictionaries with "step" and "substeps" and "system" keys). '
-                      'You must pass a system field to each main step to indicate the regulate your behavior'
-                      '(think each main step you are a different role, a website searcher, a programmer, etc.). '
+                      'and sub-steps (using dictionaries with "step" and "substeps"). '
                       'Plans are executed in the order provided. This tool can be called multiple times as needed '
                       'to modify future plans, but each call must include the complete future plan. '
                       'After creating a plan, use `advance_to_next_step` to start executing steps sequentially. '
-                      'Example format: [{"step": "Main step 1", "system": "You are a ... assistant to do ...", "substeps": ["Sub-step 1.1", "Sub-step 1.2"]}, '
+                      'Example format: [{"step": "Main step 1", "substeps": ["Sub-step 1.1", "Sub-step 1.2"]}, '
                       '"Simple step without substeps", {"step": "Main step 3", "substeps": ["Sub-step 3.1"]}]')
 def create_execution_plan(plans: List[Union[str, Dict[str, Any]]]) -> str:
     try:
@@ -180,8 +178,7 @@ def create_execution_plan(plans: List[Union[str, Dict[str, Any]]]) -> str:
         notebook.override_tasks(plans)
 
         return (
-            'Execution plan successfully created. You should fully rely on this schedule. '
-            'Now call `advance_to_next_step` to retrieve your first action item and begin execution. '
+            'Execution plan successfully created. Now call `advance_to_next_step` to retrieve your first action item and begin execution. '
             'Remember to call `advance_to_next_step` again after completing each step to progress through your plan.\n\n'
             'Note that main steps who have sub steps will not be executed directly - instead, you\'ll execute their substeps, and the main step will be '
             'marked as complete once all sub steps are done.')

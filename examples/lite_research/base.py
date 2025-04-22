@@ -1,6 +1,7 @@
 import inspect
 import json
 import os
+import re
 import shutil
 import time
 from contextlib import AsyncExitStack
@@ -49,7 +50,7 @@ class MCPClient:
         completion = None
         parameters = inspect.signature(self.client.chat.completions.create).parameters
         kwargs = {key: value for key, value in kwargs.items() if key in parameters}
-        for i in range(5):
+        for i in range(20):
             try:
                 completion = self.client.chat.completions.create(
                     model=model,
@@ -63,7 +64,7 @@ class MCPClient:
             except Exception as e:
                 print(str(e))
                 _e = e
-                time.sleep(15)
+                time.sleep(20)
                 continue
         if _e:
             raise _e
@@ -223,6 +224,8 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
             messages = [{"role": "user", "content": default_system + self.connector + query}]
         tools = []
         for key, session in self.sessions.items():
+            if key == 'edgeone-pages-mcp-server':
+                continue
             response = await session.list_tools()
             available_tools = [
                 {
@@ -230,11 +233,13 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                     "description": tool.description,
                     "input_schema": tool.inputSchema
                 }
-                for tool in response.tools if tool.name not in ('tavily-extract', 'store_intermediate_results', 'get_intermediate_results')
+                for tool in response.tools if tool.name not in ('tavily-extract')
             ]
             tools.extend(available_tools)
 
         task_done_cnt = 0
+        final_result = ''
+        result_section = False
         while True:
             response = self.generate_response(messages, self.model, tools=tools, **kwargs)
             message = response.choices[0].message
@@ -245,6 +250,17 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
             content = reasoning + (message.content or '')
             if '<task_done>' in content or task_done_cnt >= 4:
                 break
+            if '<result>' in content and '</result>' in content:
+                pattern = r"<result>(.*?)</result>"
+                final_result = re.findall(pattern, content, re.DOTALL)
+            elif '<result>' in content:
+                result_section = True
+                final_result += content.split('<result>')[1]
+            elif '</result>' in content:
+                final_result += content.split('</result>')[0]
+                result_section = False
+            elif result_section:
+                final_result += content
             if content.strip() or message.tool_calls:
                 messages.append({
                     "role": "assistant",
@@ -256,6 +272,8 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                     try:
                         name = tool.function.name
                         args = tool.function.arguments
+                        if name == 'advance_to_next_step':
+                            name = 'notebook---advance_to_next_step'
                         key, tool_name = name.split('---')
                         args = json.loads(args)
                         if tool.function.name == 'notebook---initialize_task':
@@ -266,7 +284,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                                 args['user_query'] = user_query
                         elif tool.function.name == 'notebook---verify_task_completion':
                             task_done_cnt += 1
-                        if tool.function.name == 'notebook---advance_to_next_step':
+                        if 'advance_to_next_step' in tool.function.name:
                             start = 1
                             _messages = [messages[0]]
                             if messages[0]['role'] == 'system':
@@ -275,7 +293,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                             for i in range(start, len(messages)-1, 2):
                                 resp = messages[i]
                                 qry = messages[i+1]
-                                if resp.get('tool_calls') and resp['tool_calls'][0].function.name == 'notebook---advance_to_next_step':
+                                if resp.get('tool_calls') and 'advance_to_next_step' in resp['tool_calls'][0].function.name:
                                     continue
                                 _messages.append(resp)
                                 _messages.append(qry)
@@ -303,7 +321,7 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                             tool_result = str(_args)
                         # if tool.function.name == 'notebook---store_intermediate_results':
                         #     messages[-2]['content'] = f'Tool result cached to notebook with title: {args["title"]}'
-                        if tool.function.name == 'notebook---advance_to_next_step':
+                        if 'advance_to_next_step' in tool.function.name:
                             content_and_system = json.loads(tool_result)
                             tool_result = content_and_system[0]
                             system = content_and_system[1]
@@ -312,8 +330,6 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                                 if messages[0]['role'] == 'system':
                                     _messages.append(messages[1])
                                 messages = _messages
-                            if messages[0]['role'] == 'system':
-                                messages[0]['content'] = self.sub_system + system
                             if 'Previous main task done' in tool_result:
                                 messages.append({
                                     'role': 'user',
@@ -334,6 +350,8 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                         _print_result = tool_result  # result.content[0].text or ''
                         yield f'{content}\n\n tool call: {name}, {args}\n\n tool result: {_print_result}'
                     except Exception as e:
+                        import traceback
+                        print(traceback.format_exc())
                         messages.append({
                             'role': 'tool',
                             'content': f'Tool {name} called with error: ' + str(e),
@@ -345,6 +363,15 @@ DO NOT add any other parts like ```json which may cause parse error of json."""
                 if content:
                     yield content
                 continue
+
+        print(final_result)
+        if 'edgeone-pages-mcp-server' in self.sessions:
+            # our api has a problem with dealing `edgeone-pages-mcp-server`
+            # so we call it manually.
+            session = self.sessions['edgeone-pages-mcp-server']
+            response = await session.list_tools()
+            result = await session.call_tool(response.tools[0].name, {'value': final_result})
+            print(result)
 
     async def connect_all_servers(self, query):
         config = self.generate_config(self.mcp)

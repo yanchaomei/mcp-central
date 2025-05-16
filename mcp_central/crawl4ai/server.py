@@ -47,8 +47,6 @@ async def crawl_website(website: str) -> str:
                 for key in result.media:
                     media_dict = result.media[key]
                     for idx, row in enumerate(media_dict):
-                        if idx > 20:
-                            break
                         src = row["src"] or ''
                         if src and not src.startswith('http'):
                             src = src.lstrip('/')

@@ -1,0 +1,9 @@
+{
+    "ocrmypdf": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/ocrmypdf/server.py"
+      ]
+    }
+}

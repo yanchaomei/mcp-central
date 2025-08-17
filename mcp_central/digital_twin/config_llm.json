@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "digital_twin_llm": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/mcp-central/mcp_central/digital_twin/server_llm.py"
+      ]
+    }
+  },
+  "llm_config": {
+    "model_name": "qwen2.5:7b",
+    "api_base": "http://localhost:11434",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "max_tokens": 2048,
+    "temperature": 0.7
+  },
+  "vector_db_config": {
+    "dimension": 384,
+    "similarity_threshold": 0.7,
+    "max_results": 5
+  }
+}

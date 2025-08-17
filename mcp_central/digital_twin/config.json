@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "digital_twin": {
+      "command": "/path/to/fastmcp",
+      "args": [
+        "run",
+        "/path/to/mcp-central/mcp_central/digital_twin/server.py"
+      ]
+    }
+  }
+}
